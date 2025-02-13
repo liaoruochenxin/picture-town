@@ -1,4 +1,4 @@
-package com.xj.imageback.domain;
+package com.xj.imageback.model.domain;
 
 import com.baomidou.mybatisplus.annotation.*;
 

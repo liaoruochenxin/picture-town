@@ -1,6 +1,6 @@
 package com.xj.imageback.mapper;
 
-import com.xj.imageback.domain.User;
+import com.xj.imageback.model.domain.User;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
 /**

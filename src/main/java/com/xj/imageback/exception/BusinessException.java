@@ -6,21 +6,21 @@ import lombok.Getter;
  * 自定义业务异常类，便于定制化输出错误信息
  */
 @Getter
-public class BussinessException extends RuntimeException{
+public class BusinessException extends RuntimeException{
     // 错误码
     private final int code;
 
-    public BussinessException(String message, int code) {
+    public BusinessException(String message, int code) {
         super(message);
         this.code = code;
     }
 
-    public BussinessException(ErrorCode errorCode) {
+    public BusinessException(ErrorCode errorCode) {
         super(errorCode.getMessage());
         this.code = errorCode.getCode();
     }
 
-    public BussinessException(ErrorCode errorCode, String messsage) {
+    public BusinessException(ErrorCode errorCode, String messsage) {
         super(messsage);
         this.code = errorCode.getCode();
     }
