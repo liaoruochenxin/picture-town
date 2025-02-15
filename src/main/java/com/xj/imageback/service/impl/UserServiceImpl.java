@@ -1,5 +1,7 @@
 package com.xj.imageback.service.impl;
 
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.ObjUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.DigestUtil;
@@ -8,13 +10,20 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.xj.imageback.exception.BusinessException;
 import com.xj.imageback.exception.ErrorCode;
 import com.xj.imageback.model.domain.User;
-import com.xj.imageback.model.vo.LoginUserVo;
+import com.xj.imageback.model.dto.user.UserQueryRequest;
+import com.xj.imageback.model.vo.LoginUserVO;
+import com.xj.imageback.model.vo.UserVO;
 import com.xj.imageback.service.UserService;
 import com.xj.imageback.mapper.UserMapper;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.xj.imageback.constant.UserConstant.USER_LOGIN_STATE;
 
@@ -66,7 +75,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     }
 
     @Override
-    public LoginUserVo userLogin(String userAccount, String userPassword, HttpServletRequest request) {
+    public LoginUserVO userLogin(String userAccount, String userPassword, HttpServletRequest request) {
         if (StrUtil.hasBlank(userAccount, userPassword)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数不能为空");
         }
@@ -89,13 +98,96 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         // 登录成功，记录用户信息
         HttpSession session = request.getSession();
         session.setAttribute(USER_LOGIN_STATE, user);
-        return user;
+        LoginUserVO loginUserVo = getLoginUserVo(user);
+        return loginUserVo;
     }
 
     public String encryptPassword(String password) {
         String md5Hex = DigestUtil.md5Hex("XJ" + password);
         return md5Hex;
     }
+
+    @Override
+    public LoginUserVO getLoginUserVo(User user) {
+        if (user == null) {
+            return null;
+        }
+        LoginUserVO loginUserVo = new LoginUserVO();
+        BeanUtils.copyProperties(user, loginUserVo);
+        return loginUserVo;
+    }
+
+    @Override
+    public LoginUserVO getCurrentUser(HttpServletRequest request) {
+        // 先判断是否登录
+        HttpSession session = request.getSession();
+        User attribute = (User) session.getAttribute(USER_LOGIN_STATE);
+        if(attribute == null || attribute.getId() == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+
+        // 可以直接返回，也可以再去数据库查
+        Long id = attribute.getId();
+        User user = this.getById(id);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        LoginUserVO loginUserVo = getLoginUserVo(user);
+        return loginUserVo;
+    }
+
+    @Override
+    public boolean userLogout(HttpServletRequest request) {
+        HttpSession session = request.getSession();
+        User attribute = (User) session.getAttribute(USER_LOGIN_STATE);
+        // 判断是否登录
+        if (attribute == null || attribute.getId() == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
+        }
+        session.removeAttribute(USER_LOGIN_STATE);
+        return true;
+    }
+
+    @Override
+    public UserVO getUserVO(User user) {
+        if (user == null) {
+            return null;
+        }
+        UserVO userVO = new UserVO();
+        BeanUtils.copyProperties(user, userVO);
+        return userVO;
+    }
+
+    @Override
+    public List<UserVO> getUserVOList(List<User> userList) {
+        if (CollUtil.isEmpty(userList)) {
+            return new ArrayList<>();
+        }
+        return userList.stream().map(this::getUserVO).collect(Collectors.toList());
+    }
+
+    @Override
+    public QueryWrapper<User> getQueryWrapper(UserQueryRequest userQueryRequest) {
+        if (userQueryRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数为空");
+        }
+        Long id = userQueryRequest.getId();
+        String userAccount = userQueryRequest.getUserAccount();
+        String userName = userQueryRequest.getUserName();
+        String userProfile = userQueryRequest.getUserProfile();
+        String userRole = userQueryRequest.getUserRole();
+        String sortField = userQueryRequest.getSortField();
+        String sortOrder = userQueryRequest.getSortOrder();
+        QueryWrapper<User> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq(ObjUtil.isNotNull(id), "id", id);
+        queryWrapper.eq(StrUtil.isNotBlank(userRole), "userRole", userRole);
+        queryWrapper.like(StrUtil.isNotBlank(userAccount), "userAccount", userAccount);
+        queryWrapper.like(StrUtil.isNotBlank(userName), "userName", userName);
+        queryWrapper.like(StrUtil.isNotBlank(userProfile), "userProfile", userProfile);
+        queryWrapper.orderBy(StrUtil.isNotEmpty(sortField), sortOrder.equals("ascend"), sortField);
+        return queryWrapper;
+    }
+
 }
 
 
