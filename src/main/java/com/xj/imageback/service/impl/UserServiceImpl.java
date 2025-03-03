@@ -11,6 +11,7 @@ import com.xj.imageback.exception.BusinessException;
 import com.xj.imageback.exception.ErrorCode;
 import com.xj.imageback.model.domain.User;
 import com.xj.imageback.model.dto.user.UserQueryRequest;
+import com.xj.imageback.model.enums.UserRoleEnum;
 import com.xj.imageback.model.vo.LoginUserVO;
 import com.xj.imageback.model.vo.UserVO;
 import com.xj.imageback.service.UserService;
@@ -118,23 +119,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
     }
 
     @Override
-    public LoginUserVO getCurrentUser(HttpServletRequest request) {
-        // 先判断是否登录
-        HttpSession session = request.getSession();
-        User attribute = (User) session.getAttribute(USER_LOGIN_STATE);
-        if(attribute == null || attribute.getId() == null) {
+    public User getCurrentUser(HttpServletRequest request) {
+        // 先判断是否已登录
+        Object userObj = request.getSession().getAttribute(USER_LOGIN_STATE);
+        User currentUser = (User) userObj;
+        if (currentUser == null || currentUser.getId() == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
-
-        // 可以直接返回，也可以再去数据库查
-        Long id = attribute.getId();
-        User user = this.getById(id);
-        if (user == null) {
+        // 从数据库查询（追求性能的话可以注释，直接返回上述结果）
+        long userId = currentUser.getId();
+        currentUser = this.getById(userId);
+        if (currentUser == null) {
             throw new BusinessException(ErrorCode.NOT_LOGIN_ERROR);
         }
-        LoginUserVO loginUserVo = getLoginUserVo(user);
-        return loginUserVo;
+        return currentUser;
     }
+
 
     @Override
     public boolean userLogout(HttpServletRequest request) {
@@ -188,6 +188,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>
         return queryWrapper;
     }
 
+    @Override
+    public boolean isAdmin(User user) {
+        return user != null && UserRoleEnum.ADMIN.getValue().equals(user.getUserRole());
+    }
 }
 
 
